@@ -10,6 +10,8 @@ import Data.Maybe
 
 import Debug.Trace
 
+import Foreign.Storable
+
 import qualified Data.Vector.Storable as V
 
 {-mean, m2 :: V.Vector Double
@@ -43,6 +45,13 @@ main = runRIO $ do
 
 type Simplex = [(V.Vector Double, Double)]
 
+instance (Storable a, Num a) => Num (V.Vector a) where
+   (+) = V.zipWith (+)
+   (-) = V.zipWith (-)
+   (*) = V.zipWith (*)
+
+scale x = V.map (*x)
+
 centroid :: Simplex -> V.Vector Double
 centroid points = scale (recip l) $ sum $ map fst points
     where l = fromIntegral $ length points
@@ -57,7 +66,7 @@ secondLast (_:xs) = secondLast xs
 
 replaceLast xs x = init xs ++ [x]
 
-hessianFromSimplex :: (V.Vector Double -> Double) -> [Int] -> [((Int, Int), Double)] -> Simplex -> (V.Vector Double, Matrix Double)
+{-hessianFromSimplex :: (V.Vector Double -> Double) -> [Int] -> [((Int, Int), Double)] -> Simplex -> (V.Vector Double, Matrix Double)
 hessianFromSimplex f isInt fixed sim = 
   let mat :: [V.Vector Double]
       mat = toRows $ fromColumns $ map fst sim
@@ -89,7 +98,7 @@ hessianFromSimplex f isInt fixed sim =
   -- we probably  ought to make pos-definite
   -- http://www.mathworks.com/matlabcentral/newsreader/view_thread/103174
   -- posdefify in R etc  
-  in (fromList (map (fst) swings), hess2)
+  in (fromList (map (fst) swings), hess2) -}
 
 atLeastOne :: Double -> Double
 atLeastOne x | isNaN x || isInfinite x = 1.0
@@ -99,11 +108,12 @@ atLeastOne x | isNaN x || isInfinite x = 1.0
 
 genInitial :: (V.Vector Double -> Double) -> [Int] -> (Int -> Double) -> V.Vector Double -> Simplex
 genInitial f isInt h x0 = sim where
-  n = length $ toList x0
-  unit d = buildVector n $ \j -> if j /=d then 0.0 else if d `elem` isInt then atLeastOne $ h j*x0@>d 
-                                                                          else h j*x0@>d  
+  n = length $ V.toList x0
+  unit d = V.generate n $ \j -> if j /=d then 0.0 else if d `elem` isInt then atLeastOne $ h j*(x0!d)
+                                                                          else h j*(x0!d)  
   mkv d = with f $ x0 + unit d
   sim = (x0, f x0) : map mkv [0..n-1] 
+  (!) = (V.!)
 
 goNm :: (V.Vector Double -> Double) -> [Int] -> Double -> Int -> Int -> Simplex -> Simplex
 goNm f' isInt tol nmin nmax sim' = go f' 0 $ sortBy (comparing snd) sim'  where
@@ -147,13 +157,13 @@ nmStep f isInt s0 = snext where
                 else if fxe < fxr
                         then replaceLast s0 (xe,fxe)
                         else replaceLast s0 (xr,fxr)
-   xc = xnp1 + nmRho * (x0-xnp1)
+   xc = xnp1 + scale nmRho  (x0-xnp1)
    fxc = f xc
    scontract = if fxc < fxnp1
                   then replaceLast s0 (xc,fxc)
                   else sreduce
    sreduce = case s0 of 
-              p0@(x1,_):rest -> p0 : (flip map rest $ \(xi,_) -> with f $ x1+nmRho * (xi-x1))
+              p0@(x1,_):rest -> p0 : (flip map rest $ \(xi,_) -> with f $ x1+ scale nmRho (xi-x1))
 
    
 with f x = (x, f x)
