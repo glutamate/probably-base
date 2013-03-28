@@ -6,7 +6,6 @@
 module Math.Probably.PDF where
 
 import qualified Math.Probably.Student as S
-import Numeric.LinearAlgebra
 import Control.Spoon
 import Control.DeepSeq
 import qualified Data.Vector.Storable as VS
@@ -91,6 +90,8 @@ mulPdf :: Num a => PDF a -> PDF a -> PDF a
 mulPdf d1 d2 = \x -> (d1 x + d2 x)
 
 --instance Num a => Num (PDF a) where
+
+{-
    
 instance NFData (Matrix Double) 
    where rnf mat = mapMatrix (\x-> x `seq` 1.0::Double) mat `seq` ()
@@ -146,3 +147,5 @@ posdefify m =
 
 mkSym m = buildMatrix (rows m) (cols m)$ \(i,j) ->if i>=j then m @@>(i,j) 
                                                            else m @@>(j,i) 
+
+-}

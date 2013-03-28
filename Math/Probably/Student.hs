@@ -1,7 +1,8 @@
 module Math.Probably.Student where
 
 import Math.Probably.FoldingStats
-import Numeric.LinearAlgebra
+import qualified Data.Vector.Storable as V
+
 --http://www.haskell.org/haskellwiki/Gamma_and_Beta_function
 --cof :: [Double]
 cof = [76.18009172947146,-86.50532032941677,24.01409824083091,
@@ -30,12 +31,12 @@ oneSampleT v0 = fmap (\(mean,sd,n)-> (mean - v0)/(sd/(sqrt n))) meanSDNF
 pairedSampleT  = before (fmap (\(mean,sd,n)-> (mean)/(sd/(sqrt n))) meanSDNF)
                         (uncurry (-))
 
-tTerms = fromList $ map tTermUnmemo [1..100]
+tTerms = V.fromList $ map tTermUnmemo [1..100]
 
 tTermUnmemo nu = gammaln ((realToFrac nu+1)/2) - log(realToFrac nu*pi)/2 - gammaln (realToFrac nu/2)
 
 tTerm1 :: Int -> Double
-tTerm1 df | df <= 100 = tTerms@>df
+tTerm1 df | df <= 100 = (V.!) tTerms df
           | otherwise = tTermUnmemo df
 
 tDist df t = tTerm1 df - (realToFrac df +1/2) * log (1+(t*t)/(realToFrac df))

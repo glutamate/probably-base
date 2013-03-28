@@ -38,13 +38,14 @@ module Math.Probably.Sampler where
 import Control.Monad
 import Control.Applicative
 import qualified Math.Probably.PDF as PDF
-import Numeric.LinearAlgebra hiding (find)
 import System.Random.Mersenne.Pure64
 import System.Environment
 import Data.List
 import Data.Maybe
 import Data.Ord
 import Control.Spoon
+
+import qualified Data.Vector.Storable as V
 
 --import Debug.Trace
 
@@ -198,7 +199,7 @@ gaussManyUnitD n | odd n = liftM2 (:) (gauss 0 1) (gaussManyUnit (n-1))
    gaussTwoAtATimeD (u1:u2:rest) = sqrt(-2*log(u1))*cos(2*pi*u2) : sqrt(-2*log(u1))*sin(2*pi*u2) : gaussTwoAtATimeD rest
    gaussTwoAtATimeD _ = []
 
-
+{-
 
 -- | Multivariate normal distribution
 multiNormal :: Vector Double -> Matrix Double -> Sampler (Vector Double)
@@ -221,12 +222,12 @@ multiNormalByChol mu cholSigma =
         let c = asColumn z
         let r = asRow z
         return $ (mu + (head $ toColumns $ a `multiply` asColumn z))
-
-multiNormalIndep  :: Vector Double -> Vector Double -> Sampler (Vector Double)
+-}
+multiNormalIndep  :: V.Vector Double -> V.Vector Double -> Sampler (V.Vector Double)
 multiNormalIndep vars mus = do
-   let k = dim mus
+   let k = V.length mus
    gs <- gaussManyUnitD k
-   return $ fromList $ zipWith3 (\var mu g -> g*sqrt(var) + mu) (toList vars) (toList mus) gs
+   return $ V.fromList $ zipWith3 (\var mu g -> g*sqrt(var) + mu) (V.toList vars) (V.toList mus) gs
 
 
 

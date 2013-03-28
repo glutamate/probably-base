@@ -11,7 +11,6 @@ import Debug.Trace
 
 import Data.Maybe
 
-import Numeric.LinearAlgebra hiding (find)
 
 weightedMeanCov :: [(Vector Double, Double)] -> (Vector Double, Matrix Double)
 weightedMeanCov pts = (mu, cov) where

@@ -14,8 +14,6 @@ import Math.Probably.FoldingStats
 import Control.Monad
 import Debug.Trace
 import Data.Binary
-import qualified Numeric.LinearAlgebra as L
-import qualified Data.Packed.Matrix as L
 import Control.Spoon
 
 
@@ -526,7 +524,7 @@ writeInChunks = writeInChunks' 0
 
 
 --- Adaptive Metropolis from Haario et al
-
+{-
 data AMPar = AMPar { ampPar :: !(L.Vector Double),
                      ampMean :: !(L.Vector Double),
                      ampCov :: !(L.Matrix Double),
@@ -720,7 +718,7 @@ adaMetInterleaveInitial freeze initcov pdf am@(AMPar xi mn cov sf pi (realToFrac
            in return $ AMPar xaccept nmn ncov sf paccept (round $ t+1) nnaccept
 --   return $ AMPar xaccept mn cov (round $ t+1)
 
-
+-}
 
 accept am pi pstar | notNanInf2 pi pstar =  do u<- unitSample 
                                                if u < exp (pstar - pi) then return True

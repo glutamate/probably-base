@@ -8,8 +8,6 @@ import Math.Probably.FoldingStats
 import Math.Probably.MCMC (empiricalMean, empiricalCovariance)
 import Debug.Trace
 
-import Numeric.LinearAlgebra hiding (find)
-
 -- smells because it is inefficient. For testing.
 smellyTransform :: Sampler a -> Int -> (a -> Vector Double) -> Sampler (Vector Double, Matrix Double)
 smellyTransform dist n f = do

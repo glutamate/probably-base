@@ -3,7 +3,6 @@
 module Math.Probably.NelderMead where
 
 import Math.Probably.FoldingStats
-import Numeric.LinearAlgebra
 
 import Data.Ord
 import Data.List
@@ -11,7 +10,9 @@ import Data.Maybe
 
 import Debug.Trace
 
-{-mean, m2 :: Vector Double
+import qualified Data.Vector.Storable as V
+
+{-mean, m2 :: V.Vector Double
 mean = fromList [45.1,10.3]
 
 cov :: Matrix Double
@@ -40,9 +41,9 @@ main = runRIO $ do
   io $ print $ finalSim
   io $ print $ hessianFromSimplex (negate . pdf) finalSim -}
 
-type Simplex = [(Vector Double, Double)]
+type Simplex = [(V.Vector Double, Double)]
 
-centroid :: Simplex -> Vector Double
+centroid :: Simplex -> V.Vector Double
 centroid points = scale (recip l) $ sum $ map fst points
     where l = fromIntegral $ length points
 
@@ -56,9 +57,9 @@ secondLast (_:xs) = secondLast xs
 
 replaceLast xs x = init xs ++ [x]
 
-hessianFromSimplex :: (Vector Double -> Double) -> [Int] -> [((Int, Int), Double)] -> Simplex -> (Vector Double, Matrix Double)
+hessianFromSimplex :: (V.Vector Double -> Double) -> [Int] -> [((Int, Int), Double)] -> Simplex -> (V.Vector Double, Matrix Double)
 hessianFromSimplex f isInt fixed sim = 
-  let mat :: [Vector Double]
+  let mat :: [V.Vector Double]
       mat = toRows $ fromColumns $ map fst sim
       fsw ((y0, ymin),ymax) = (y0, max (ymax-y0) (y0-ymin))
       swings = flip map mat $ runStat (fmap fsw $ meanF `both` minFrom 1e80 `both` maxFrom (-1e80)) . toList 
@@ -71,7 +72,7 @@ hessianFromSimplex f isInt fixed sim =
       funits d i | d/=i = 0
                  | i `elem` isInt = atLeastOne $ snd $ swings!!i
                  | otherwise = snd $ swings!!i 
-      units = flip map [0..n-1] $ \d -> buildVector n $ funits d
+      units = flip map [0..n-1] $ \d -> V.generate n $ funits d
       --http://www.caspur.it/risorse/softappl/doc/sas_docs/ormp/chap5/sect28.htm
       fhess ij@ (i,j) | ij `elem` fixedpts = fromJust $ lookup ij fixed 
                       | i>=j = 
@@ -96,7 +97,7 @@ atLeastOne x | isNaN x || isInfinite x = 1.0
              | x < 0 = -1.0
              | otherwise = 1.0
 
-genInitial :: (Vector Double -> Double) -> [Int] -> (Int -> Double) -> Vector Double -> Simplex
+genInitial :: (V.Vector Double -> Double) -> [Int] -> (Int -> Double) -> V.Vector Double -> Simplex
 genInitial f isInt h x0 = sim where
   n = length $ toList x0
   unit d = buildVector n $ \j -> if j /=d then 0.0 else if d `elem` isInt then atLeastOne $ h j*x0@>d 
@@ -104,7 +105,7 @@ genInitial f isInt h x0 = sim where
   mkv d = with f $ x0 + unit d
   sim = (x0, f x0) : map mkv [0..n-1] 
 
-goNm :: (Vector Double -> Double) -> [Int] -> Double -> Int -> Int -> Simplex -> Simplex
+goNm :: (V.Vector Double -> Double) -> [Int] -> Double -> Int -> Int -> Simplex -> Simplex
 goNm f' isInt tol nmin nmax sim' = go f' 0 $ sortBy (comparing snd) sim'  where
   go f i sim = let nsim = sortBy (comparing snd) $ (nmStep f isInt sim)
                    fdiff = abs $ snd (last nsim) - snd (head nsim) 
@@ -114,7 +115,7 @@ goNm f' isInt tol nmin nmax sim' = go f' 0 $ sortBy (comparing snd) sim'  where
                         |  any (isNaN) (map snd nsim) -> sim
                         |  otherwise   -> go f (i+1) nsim 
 
-goNmVerbose :: (Vector Double -> Double) -> [Int] -> Double -> Int -> Int -> Simplex -> Simplex
+goNmVerbose :: (V.Vector Double -> Double) -> [Int] -> Double -> Int -> Int -> Simplex -> Simplex
 goNmVerbose f' isInt tol nmin nmax sim' = go f' 0 $ sortBy (comparing snd) sim' where
   go f i sim = let nsim = sortBy (comparing snd) $ (nmStep f isInt sim)
                    fdiff = trace ("1: "++ show (fst (head nsim)) ++ "\nlast: "++ 
@@ -128,7 +129,7 @@ goNmVerbose f' isInt tol nmin nmax sim' = go f' 0 $ sortBy (comparing snd) sim' 
                       |  otherwise   -> go f (i+1) nsim
   
 
-nmStep :: (Vector Double -> Double) -> [Int] -> Simplex -> Simplex
+nmStep :: (V.Vector Double -> Double) -> [Int] -> Simplex -> Simplex
 nmStep f isInt s0 = snext where
    x0 = centroid $ init s0
    xnp1 = fst (last s0)

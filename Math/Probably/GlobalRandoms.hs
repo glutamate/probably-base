@@ -4,8 +4,6 @@ import Data.IORef
 import System.IO.Unsafe
 import Math.Probably.Sampler
 
-import Numeric.LinearAlgebra
-
 
 {-# NOINLINE globalSeed #-}
 globalSeed :: IORef Seed

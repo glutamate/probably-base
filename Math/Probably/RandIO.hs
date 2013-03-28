@@ -9,12 +9,9 @@ import Math.Probably.FoldingStats
 import Math.Probably.Sampler
 import qualified Control.Monad.State.Strict as S
 import System.IO
-import qualified Data.Packed.Matrix as L
 import Control.Monad.Trans
 import Control.Monad
 import Data.IORef
-import qualified Numeric.LinearAlgebra as L
-import Math.Probably.NelderMead
 
 import qualified Data.Vector.Storable as V
 import Statistics.Autocorrelation
@@ -59,7 +56,7 @@ runChainRIO n showit init sam = do
                                  putStrLn $ show (((n-nn) `div` chsz)*2)++"%: " ++showit xx
                              go (nn-1) ns xx $ xx:xs
            chsz = n `div` 50
-
+{-
 data AdaMetRunPars = AdaMetRunPars 
      { nmTol :: Double,
        displayIt :: Maybe (L.Vector Double -> String),
@@ -478,3 +475,5 @@ initAdaMetFromCov nsam pdf initv retries cov = do
      _ | rate < 0.20 ->  initAdaMetFromCov nsam pdf initv (retries +1) $ L.scale 0.8 cov 
      _ | otherwise -> do lift $ putStrLn "initals ok." 
                          return iniampar  
+
+-}
