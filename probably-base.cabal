@@ -3,68 +3,61 @@ Version:             0.2.2
 Synopsis:            Probability and Statistics
 Description:         Library for Probability and Statistics.
                      .
-		     'probably' contains definitions and functions for probabilistic and statistical
-                     inference.
+                     'probably' contains definitions and functions for
+                     probabilistic and statistical inference.
                      .
-                     * Math.Probably.Sampler defines the sampling function monad, as described by Sungwoo Park
-                       and implemented elsewhere (e.g. 'random-fu' and 'monte-carlo' packages)
+                     * Math.Probably.Sampler defines the sampling
+                       function monad, as described by Sungwoo Park
+                       and implemented elsewhere (e.g. 'random-fu' and
+                       'monte-carlo' packages)
                      .
-                     * Math.Probably.PDF defines some common parametric log-probability density functions
+                     * Math.Probably.PDF defines some common
+                       parametric log-probability density functions
                      .
-                     * Math.Probably.LinearPDF as above but in linear space
+                     * Math.Probably.LinearPDF as above but in linear
+                       space
                      .
-                     * Math.Probably.FoldingStats defines statistics as folds that can be composed and calculated 
-                       independently of the container of the underlying data. 
+                     * Math.Probably.FoldingStats defines statistics
+                       as folds that can be composed and calculated
+                       independently of the container of the
+                       underlying data.
                      .
-                     * Math.Probably.StochFun defines stochastic functions and Markov chains
+                     * Math.Probably.StochFun defines stochastic
+                       functions and Markov chains
                      .
-                     * Math.Probably.MCMC implements Markov Chain Monte Carlo, including importance,
-                      rejection and Metropolis-Hastings sampling
-      
-                     
+                     * Math.Probably.MCMC implements Markov Chain
+                      Monte Carlo, including importance, rejection and
+                      Metropolis-Hastings sampling
 License:             AllRightsReserved
 License-file:        LICENSE
 Author:              Tom Nielsen
 Maintainer:          tanielsen@gmail.com
 build-type:          Simple
-Cabal-Version: 	     >= 1.8
+Cabal-Version:       >= 1.8
 
 Library
-   ghc-options:         -O2
-   Exposed-modules:     Math.Probably.Sampler,
-                        Math.Probably.FoldingStats,
-                        Math.Probably.Student,
-                        Math.Probably.PDF,
-                        Math.Probably.SDE,
-                        Math.Probably.StochFun,
-                        Math.Probably.MCMC,
-                        Math.Probably.KMeans,
-                        Math.Probably.GlobalRandoms,
-                        Math.Probably.NelderMead,
-                        Math.Probably.Distribution,
-                        Math.Probably.RandIO
-
-
-   Build-depends:       base
-                          -- >= 4.6        && < 5
-                      , mersenne-random-pure64
-        -- >= 0.2.0.3    && < 0.3
-                      , binary
-                        -- >= 0.7.1.0    && < 0.8
-                      , mtl
-                           -- >= 2.1.2      && < 2.2
-                      , spoon
-                         -- >= 0.3.1      && < 0.4
-                      , deepseq
-                       -- >= 1.3.0.1    && < 1.4
-                      , statistics
-                    -- >= 0.10.4.1   && < 0.10.5
-                      , vector
-                        -- >= 0.10.0.1   && < 0.11
-                      , data-default
-                  -- >= 0.5.3      && < 0.6
-                      , monad-par
-                     -- >= 0.3.4.2    && < 0.4
-
-   ghc-prof-options:    -auto-all
+   ghc-options: -O2
+   Exposed-modules: Math.Probably.Sampler,
+                    Math.Probably.FoldingStats,
+                    Math.Probably.Student,
+                    Math.Probably.PDF,
+                    Math.Probably.SDE,
+                    Math.Probably.StochFun,
+                    Math.Probably.MCMC,
+                    Math.Probably.KMeans,
+                    Math.Probably.GlobalRandoms,
+                    Math.Probably.NelderMead,
+                    Math.Probably.Distribution,
+                    Math.Probably.RandIO
+   Build-depends: base                          >= 4.6        && < 5
+                  , mersenne-random-pure64        >= 0.2.0.3    && < 0.3
+                  , binary                        >= 0.7.1.0    && < 0.8
+                  , mtl                           >= 2.1.2      && < 2.2
+                  , spoon                         >= 0.3.1      && < 0.4
+                  , deepseq                       >= 1.3.0.1    && < 1.4
+                  , statistics                    >= 0.10.4.1   && < 0.10.5
+                  , vector                        >= 0.10.0.1   && < 0.11
+                  , data-default                  >= 0.5.3      && < 0.6
+                  , monad-par                     >= 0.3.4.2    && < 0.4
+   ghc-prof-options: -auto-all
 
