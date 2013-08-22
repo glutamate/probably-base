@@ -13,6 +13,7 @@ import Debug.Trace
 import Foreign.Storable
 
 import qualified Data.Vector.Storable as V
+import qualified Numeric.LinearAlgebra as L
 
 {-mean, m2 :: V.Vector Double
 mean = fromList [45.1,10.3]
@@ -45,10 +46,10 @@ main = runRIO $ do
 
 type Simplex = [(V.Vector Double, Double)]
 
-instance (Storable a, Num a) => Num (V.Vector a) where
+{-instance (Storable a, Num a) => Num (V.Vector a) where
    (+) = V.zipWith (+)
    (-) = V.zipWith (-)
-   (*) = V.zipWith (*)
+   (*) = V.zipWith (*) -}
 
 scale x = V.map (*x)
 
