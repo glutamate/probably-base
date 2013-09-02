@@ -18,7 +18,7 @@ import Control.Spoon
 
 
 --http://videolectures.net/mlss08au_freitas_asm/
-rejection :: Double -> P.PDF a -> Sampler a -> P.PDF a -> Sampler a
+rejection :: Double -> P.PDF a -> Prob a -> P.PDF a -> Prob a
 rejection mult nicePDF niceSampler nastyPDF = rej  
     where rej = do  x <- niceSampler
                     u <- unitSample
@@ -27,19 +27,19 @@ rejection mult nicePDF niceSampler nastyPDF = rej
                        else rej
 
 
-importanceIO :: Fractional b => P.PDF a -> Sampler a -> (a->b) -> P.PDF a -> IO [b]
+importanceIO :: Fractional b => P.PDF a -> Prob a -> (a->b) -> P.PDF a -> IO [b]
 importanceIO nicePDF niceSampler f nastyPDF = do
   let markov = mvSampler (importance nicePDF niceSampler f nastyPDF) 
   means `fmap` runMarkovIO markov 
 
 --dont read too much into the type
-importance :: Fractional b => P.PDF a -> Sampler a -> (a->b) -> P.PDF a -> Sampler b
+importance :: Fractional b => P.PDF a -> Prob a -> (a->b) -> P.PDF a -> Prob b
 importance nicePDF niceSampler f nastyPDF = do
   x <- niceSampler
   return $ (f x)*(realToFrac $ (nastyPDF x)/(nicePDF x) )
                  
 --andrieu intro mcmc for ml p 16 fig 5
-metropolisHastings :: (a-> P.PDF a) -> (a->Sampler a) -> P.PDF a -> StochFun a a
+metropolisHastings :: (a-> P.PDF a) -> (a->Prob a) -> P.PDF a -> StochFun a a
 metropolisHastings qPDF qSam p 
     = let accept xi xstar = min 1 $ (p xstar * qPDF xstar xi)/(p xi * qPDF xi xstar)
       in proc xi -> do
@@ -50,7 +50,7 @@ metropolisHastings qPDF qSam p
                       else xi
 
 
-metropolis :: (a->Sampler a) -> P.PDF a -> StochFun a a
+metropolis :: (a->Prob a) -> P.PDF a -> StochFun a a
 metropolis qSam p 
     = let accept xi xstar = min 1 $ (p xstar)/(p xi)
       in proc xi -> do
@@ -60,7 +60,7 @@ metropolis qSam p
                       then xstar
                       else xi
 
-metSample1 ::  Show a => (a->Sampler a) -> P.PDF a -> a -> Sampler a
+metSample1 ::  Show a => (a->Prob a) -> P.PDF a -> a -> Prob a
 metSample1 prop pdf = uncondSampler $ metropolisLn prop pdf
 
 notNanInf x = not (isNaN x) && not (isInfinite x)
@@ -68,7 +68,7 @@ notNanInf x = not (isNaN x) && not (isInfinite x)
 notNanInf2 x y = notNanInf x && notNanInf y
 nanOrInf x = isNaN x || isInfinite x
 
-metropolisLn :: Show a => (a->Sampler a) -> P.PDF a -> StochFun a a
+metropolisLn :: Show a => (a->Prob a) -> P.PDF a -> StochFun a a
 metropolisLn qSam p 
     = let accept xi pi pstar | notNanInf2 pi pstar =  min 1 $ exp (pstar - pi)
                              | otherwise = cond [(nanOrInf pi && nanOrInf pstar, 
@@ -85,7 +85,7 @@ metropolisLn qSam p
                       then xstar
                       else xi
 
-metropolisHastingsLn :: (a-> P.PDF a) -> (a->Sampler a) -> P.PDF a -> StochFun a a
+metropolisHastingsLn :: (a-> P.PDF a) -> (a->Prob a) -> P.PDF a -> StochFun a a
 metropolisHastingsLn qPDF qSam p 
     = let accept xi xstar = min 1 $ exp (p xstar - qPDF xstar xi - p xi + qPDF xi xstar)
       in proc xi -> do
@@ -117,17 +117,17 @@ instance Binary a => Binary (Param a) where
 newParam :: a -> Param a
 newParam x = Param 0 0 0 (1/0) 1 200 x x
 
-condDepSampler :: (Double -> b-> b->Sampler a) -> StochFun (Double,b,b) a
-condDepSampler dqSam = SF $ \((w,ini,x),dbls) -> unSam (dqSam w ini x) dbls
+condDepSampler :: (Double -> b-> b->Prob a) -> StochFun (Double,b,b) a
+condDepSampler dqSam = SF $ \((w,ini,x),dbls) -> unSampler (dqSam w ini x) dbls
 
-metSample1P :: Show a => String -> (Double -> a -> a -> Sampler a) -> P.PDF a -> (Param a) -> Sampler (Param a)
+metSample1P :: Show a => String -> (Double -> a -> a -> Prob a) -> P.PDF a -> (Param a) -> Prob (Param a)
 metSample1P st prop pdf = uncondSampler $ metropolisLnP st prop pdf
 
 --metSample1PCL :: Show a => String -> (Double -> a -> a -> Sampler a) -> P.PDF a -> P.PDF a-> (Param a) -> Sampler (Param a)
 --metSample1PCL st prop lh prior = uncondSampler $ metropolisLnPCL st prop lh prior
 
 
-metropolisLnP ::  Show a => String -> (Double -> a-> a-> Sampler a) ->  P.PDF a -> StochFun (Param a) (Param a)
+metropolisLnP ::  Show a => String -> (Double -> a-> a-> Prob a) ->  P.PDF a -> StochFun (Param a) (Param a)
 metropolisLnP st qSam p
     = let accept xi pi pstar | notNanInf2 pi pstar =  min 1 $ exp (pstar - pi)
                              | otherwise = cond [(nanOrInf pi && nanOrInf pstar, 
@@ -146,7 +146,7 @@ metropolisLnP st qSam p
                       then Param (nj+1) (nt+1) (tt+1) pstar nextw ada ini xstar
                       else Param nj (nt+1) (tt+1) pi nextw ada ini xi
 
-metropolisLnP2 ::  Show a => String -> (Double -> a-> a-> Sampler a) ->  (a -> a-> Double) -> StochFun (Param a) (Param a)
+metropolisLnP2 ::  Show a => String -> (Double -> a-> a-> Prob a) ->  (a -> a-> Double) -> StochFun (Param a) (Param a)
 metropolisLnP2 st qSam p2
     = let accept xi pdiff    | notNanInf pdiff =  exp pdiff
                              | otherwise = -1 
@@ -159,7 +159,7 @@ metropolisLnP2 st qSam p2
                       then Param (nj+1) (nt+1) (tt+1) pdiff nextw ada ini xstar
                       else Param nj (nt+1) (tt+1) pdiff nextw ada ini xi
 
-greedyLnP2 :: Show a => String -> (Double -> a -> a -> Sampler a) -> (a -> a-> Double) -> StochFun (Param a) (Param a)
+greedyLnP2 :: Show a => String -> (Double -> a -> a -> Prob a) -> (a -> a-> Double) -> StochFun (Param a) (Param a)
 greedyLnP2 st qSam p2 =
       proc par@(Param j t tt lhi curw ada ini xi) -> do
         u <- sampler unitSample -< ()
@@ -210,7 +210,7 @@ metropolisLnPCL st qSam lhf priorf
                       then Param (nj+1) (nt+1) (tt+1) lhstar nextw ini xstar
                       else Param nj (nt+1) (tt+1) lhi nextw ini xi
 -}
-metropolisLnPC :: Show a => String -> (Double -> a -> a -> Sampler a) -> P.PDF a -> StochFun (Param a) (Param a)
+metropolisLnPC :: Show a => String -> (Double -> a -> a -> Prob a) -> P.PDF a -> StochFun (Param a) (Param a)
 metropolisLnPC st qSam pdf
     = let accept xi pi pstar | notNanInf2 pi pstar =  min 1 $ exp (pstar - pi)
                              | otherwise = cond [(nanOrInf pi && nanOrInf pstar,
@@ -229,7 +229,7 @@ metropolisLnPC st qSam pdf
         returnA -< if u < accept par pi pstar
                       then Param (nj+1) (nt+1) (tt+1) pstar nextw ada ini xstar
                       else Param nj (nt+1) (tt+1) pi nextw ada ini xi
-greedyLnPC :: Show a => String -> (Double -> a -> a -> Sampler a) -> P.PDF a -> StochFun (Param a) (Param a)
+greedyLnPC :: Show a => String -> (Double -> a -> a -> Prob a) -> P.PDF a -> StochFun (Param a) (Param a)
 greedyLnPC st qSam pdf =
       proc par@(Param j t tt lhi curw ada ini xi) -> do
         u <- sampler unitSample -< ()
@@ -246,7 +246,7 @@ greedyLnPC st qSam pdf =
 traceIt :: Show a => a -> a
 traceIt x = trace (show x) x
 
-metropolisLog ::(a->Sampler a) -> P.PDF a -> StochFun (a,Double) (a,Double)
+metropolisLog ::(a->Prob a) -> P.PDF a -> StochFun (a,Double) (a,Double)
 metropolisLog qSam p 
     = let accept pi pstar =  min 1 $ exp (pstar - pi)
       in proc (xi, pi) -> do
@@ -257,7 +257,7 @@ metropolisLog qSam p
                       then (xstar, pstar)
                       else (xi, pi)
 
-samplingImportanceResampling :: [(a,Double)] -> Sampler a
+samplingImportanceResampling :: [(a,Double)] -> Prob a
 samplingImportanceResampling weightedSamples = 
   let smallest = foldl' (\acc (v,logpdf) -> min acc logpdf) (snd $ head weightedSamples) weightedSamples
       sumWeights = sum $ map (exp . (subtract smallest) . snd) weightedSamples
@@ -266,7 +266,7 @@ samplingImportanceResampling weightedSamples =
     u <- unitSample
     return . fst . fromJust $ find ((>=u*sumWeights) . snd) cummWeightedSamples
   
-abcRej :: (th -> Sampler obs) -> (obs -> obs -> Bool) -> obs -> Sampler th -> Sampler th
+abcRej :: (th -> Prob obs) -> (obs -> obs -> Bool) -> obs -> Prob th -> Prob th
 abcRej  likelihood accept theData prior = abcrej
     where abcrej = do
             suggest <- prior
@@ -276,7 +276,7 @@ abcRej  likelihood accept theData prior = abcrej
                else abcrej
 
 --parameter 
-bayes :: Ord a => Int -> P.PDF a -> Sampler a -> IO (Sampler a)
+bayes :: Ord a => Int -> P.PDF a -> Prob a -> IO (Prob a)
 bayes nsam likelihood prior = do
   let postsam = do
         theta <- prior
@@ -285,23 +285,23 @@ bayes nsam likelihood prior = do
   weightedSamples <- take nsam `fmap` runSamplerIO postsam
   return $ samplingImportanceResampling weightedSamples
 
-bayesMet :: (a->Sampler a) -> P.PDF a -> P.PDF a -> StochFun a a
+bayesMet :: (a->Prob a) -> P.PDF a -> P.PDF a -> StochFun a a
 bayesMet proposal lh prior = metropolis proposal (\x-> lh x * prior x)
 
-bayesMetLog :: Show a => (a->Sampler a) -> [P.PDF a] -> a -> Markov a
+bayesMetLog :: Show a => (a->Prob a) -> [P.PDF a] -> a -> Markov a
 bayesMetLog proposal pdfs inits = 
     let p x =  sum $ map ($x) pdfs
         p0 = p inits
     in Mrkv (metropolisLog proposal p) (inits, p0) (fst)
 
 
-bayesMetHastLog :: Show a => (a->P.PDF a) -> (a->Sampler a) -> P.PDF a -> a -> Markov a
+bayesMetHastLog :: Show a => (a->P.PDF a) -> (a->Prob a) -> P.PDF a -> a -> Markov a
 bayesMetHastLog propPDF proposal p inits = 
     {-let p0 = p inits
     in-} Mrkv (metropolisHastingsLn propPDF proposal p) (inits) (id)
 
---blockMetropolis :: Show a => (Double -> a-> a->Sampler a) -> P.PDF a -> a -> Markov a
-{-blockMetropolis :: Show a => (a->Sampler a) -> P.PDF a -> a -> Markov a
+--blockMetropolis :: Show a => (Double -> a-> a->Prob a) -> P.PDF a -> a -> Markov a
+{-blockMetropolis :: Show a => (a->Prob a) -> P.PDF a -> a -> Markov a
 blockMetropolis proposal pdf inits = 
 --   Mrkv (metropolisLnPC "" proposal pdf) (newParam inits) (unParam)
    Mrkv (metropolisLn proposal pdf) (inits) id -}
@@ -323,7 +323,7 @@ manyLike lh1 = \xys -> \theta -> product $ map (\(x,y) -> lh1 theta x y) xys
                  sd <- uniform 0 5
                  return (a,b,sd)
   in do bsam <- bayes 10000 (manyLike lh $ zip xs ys) prior
-        ps <- take 1000 `fmap` runSamplerIO bsam
+        ps <- take 1000 `fmap` runProbIO bsam
         print $ meanSDF `runStat` (map fst3 ps)
         print $ meanSDF `runStat` (map snd3 ps)
         print $ regressF `runStat`  zip xs ys -}
@@ -334,11 +334,11 @@ cond ((True, x):_) _ = x
 cond ((False, _):conds) x = cond conds x
 
 class MutateGaussian a where
-    mutGauss :: Double -> a -> Sampler a
+    mutGauss :: Double -> a -> Prob a
     mutGauss cv x = mutGaussAbs x cv x
-    mutGaussAbs :: a -> Double -> a -> Sampler a
+    mutGaussAbs :: a -> Double -> a -> Prob a
     --mutGaussAbs _ = mutGauss
-    mutGaussMany :: Double -> [a] -> Sampler [a]
+    mutGaussMany :: Double -> [a] -> Prob [a]
     mutGaussMany cv = mapM (mutGauss cv) 
     nearlyEq :: Double -> a -> a -> Bool
 

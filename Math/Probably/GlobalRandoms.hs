@@ -10,7 +10,7 @@ globalSeed :: IORef Seed
 globalSeed = unsafePerformIO $ getSeedIO >>= newIORef
                   
 {-# NOINLINE sampleN #-}
-sampleN :: Int -> Sampler a -> [a] 
+sampleN :: Int -> Prob a -> [a] 
 sampleN n = unsafePerformIO . fmap (take n) . runSamplerIO 
 
 {-  withGlobalRnds (\rs -> sam n rs sf [])

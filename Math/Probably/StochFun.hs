@@ -20,14 +20,14 @@ import Control.Applicative
 
 newtype StochFun b c = SF { unSF :: (b, Seed) -> (c,Seed) }
 
-sampler :: Sampler a -> StochFun b a
-sampler (Sam sf) = SF $ \(_, dbls) -> sf dbls
+sampler :: Prob a -> StochFun b a
+sampler (Sampler sf) = SF $ \(_, dbls) -> sf dbls
 
-condSampler :: (b->Sampler a) -> StochFun b a
-condSampler sflam = SF $ \(x, dbls) -> (unSam (sflam x)) dbls
+condSampler :: (b->Prob a) -> StochFun b a
+condSampler sflam = SF $ \(x, dbls) -> (unSampler (sflam x)) dbls
 
-uncondSampler :: StochFun b a -> (b->Sampler a) 
-uncondSampler (SF sf) = \x -> Sam $ \dbls-> sf (x,dbls)
+uncondSampler :: StochFun b a -> (b->Prob a) 
+uncondSampler (SF sf) = \x -> Sampler $ \dbls-> sf (x,dbls)
 
 
 #if __GLASGOW_HASKELL__ > 609
@@ -67,7 +67,7 @@ instance Applicative Markov where
     pure x = Mrkv (SF id) () $ const x 
     m1 <*> m2 = uncurry ($) <$> bothMv m1 m2
 
-mvSampler :: Sampler a -> Markov a
+mvSampler :: Prob a -> Markov a
 mvSampler sam = Mrkv (sampler sam) undefined id
 
 runMarkov ::  Seed -> Markov a -> [a]

@@ -32,26 +32,26 @@ runRIO mx = do
 io :: IO a -> RIO a
 io = liftIO
 
-sample :: Sampler a -> RIO a
-sample (Sam f) = do sd <- S.get
-                    let (x,sd') = f sd
-                    S.put sd'
-                    return x
+sample :: Prob a -> RIO a
+sample (Sampler f) = do sd <- S.get
+                        let (x,sd') = f sd
+                        S.put sd'
+                        return x
 
-update :: IORef a -> (a->Sampler a) -> RIO ()
+update :: IORef a -> (a->Prob a) -> RIO ()
 update rf sm = do
   x <- io $ readIORef rf
   newx <- sample $ sm x
   io $ writeIORef rf newx
 
-runChainRIO :: Int -> (a->String) -> a -> (a->Sampler a) -> RIO [a]
+runChainRIO :: Int -> (a->String) -> a -> (a->Prob a) -> RIO [a]
 runChainRIO n showit init sam = do
     seed <- S.get
     (nseed, xs) <- io $ go n seed init []
     S.put nseed
     return xs
      where go 0 s x xs = return (s, xs)
-           go nn s x xs = do let (!xx, !ns) = unSam (sam x) s
+           go nn s x xs = do let (!xx, !ns) = unSampler (sam x) s
                              when(nn `rem` chsz==0) $ 
                                  putStrLn $ show (((n-nn) `div` chsz)*2)++"%: " ++showit xx
                              go (nn-1) ns xx $ xx:xs

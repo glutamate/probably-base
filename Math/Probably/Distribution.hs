@@ -11,7 +11,7 @@ class Distribution f where
       pdf :: f -> P.PDF (Elem f)
 
 class Distribution f => ProperDistribution f where
-      sampler :: f -> S.Sampler (Elem f)
+      sampler :: f -> S.Prob (Elem f)
       estimator :: F.Fold (Elem f) f
 
 data Normal = Normal Double Double

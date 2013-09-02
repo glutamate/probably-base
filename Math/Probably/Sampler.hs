@@ -52,36 +52,38 @@ import qualified Data.Vector.Storable as V
 type Seed = PureMT
 
 
-data Sampler a = Sam {unSam :: Seed -> (a, Seed) }
+data Prob a = Sampler {unSampler :: Seed -> (a, Seed) }
                | Samples [a]
 
-instance Functor Sampler where
-    fmap f (Sam sf) = Sam $ \rs -> let (x,rs') = sf rs in
+instance Functor Prob where
+    fmap f (Sampler sf) = Sampler $ \rs -> let (x,rs') = sf rs in
                                    (f x, rs')
     fmap f (Samples xs) = Samples $ map f xs
  
-instance Applicative Sampler where
-    pure x = Sam (\rs-> (x, rs))
-    (Sam sff) <*> (Sam sfx) = Sam $ \rs-> let (f ,rs') = sff rs 
-                                              (x, rs'') = sfx rs' in
-                                          (f x, rs'')
+instance Applicative Prob where
+    pure x = Sampler (\rs-> (x, rs))
+    (Sampler sff) <*> (Sampler sfx) = Sampler $ \rs-> let (f ,rs') = sff rs 
+                                                          (x, rs'') = sfx rs' in
+                                                      (f x, rs'')
 
-instance Monad Sampler where
+instance Monad Prob where
     return = pure
-    (Sam sf) >>= f = Sam $ \rs-> let (x, rs'::Seed) = sf rs 
-                                     nextProb = f x
-                                 in case nextProb of
-                                      Sam g -> g rs'
-                                      Samples xs -> primOneOf xs rs'
-    (Samples xs) >>= f = Sam $ \rs-> let (x, rs'::Seed) = primOneOf xs rs
-                                         nextProb = f x
-                                     in case nextProb of
-                                          Sam g -> g rs'
+    (Sampler sf) >>= f = Sampler $ \rs-> 
+                             let (x, rs'::Seed) = sf rs 
+                                 nextProb = f x
+                             in case nextProb of
+                                  Sampler g -> g rs'
+                                  Samples xs -> primOneOf xs rs'
+    (Samples xs) >>= f = Sampler $ \rs-> 
+                              let (x, rs'::Seed) = primOneOf xs rs
+                                  nextProb = f x
+                              in case nextProb of
+                                          Sampler g -> g rs'
                                           Samples ys -> primOneOf ys rs'
 
 -- | given a seed, return an infinite list of draws from sampling function
-runSampler :: Seed -> Sampler a -> [a]
-runSampler pmt s@(Sam sf) 
+runSampler :: Seed -> Prob a -> [a]
+runSampler pmt s@(Sampler sf) 
    = let (x, pmt') = sf pmt
      in x : runSampler pmt' s
 runSampler _ (Samples xs) = xs
@@ -95,20 +97,20 @@ getSeedIO = do
       sdStr:_ -> return $ pureMT $ read sdStr
 
 -- | Return an infinite list of draws from sampling function in the IO monad
-runSamplerIO :: Sampler a -> IO [a]
+runSamplerIO :: Prob a -> IO [a]
 runSamplerIO s = 
    fmap (`runSampler` s) $ getSeedIO
 
 -- | Return a singe draw from sampling function
-sampleIO :: Sampler a -> IO a
+sampleIO :: Prob a -> IO a
 sampleIO s = head `fmap` runSamplerIO s
 
 -- | Return a list of n draws from sampling function
-sampleNIO :: Int -> Sampler a -> IO [a]
+sampleNIO :: Int -> Prob a -> IO [a]
 sampleNIO n s = take n `fmap` runSamplerIO s
 
 -- | Estimate the probability that a hypothesis is true (in the IO monad)
-eval :: Sampler Bool -> Sampler Double
+eval :: Prob Bool -> Prob Double
 eval s = do
   bs <- replicateM 1000 s 
   return $ realToFrac (length (filter id bs)) / 1000
@@ -128,11 +130,11 @@ sigma =  (3><3) [ 1,    1,       0,
 samIt = sampleNIO 2 $ multiNormal mu sigma
  -}
 -- | The joint distribution of two independent distributions
-joint :: Sampler a -> Sampler b -> Sampler (a,b)
+joint :: Prob a -> Prob b -> Prob (a,b)
 joint sf1 sf2 = liftM2 (,) sf1 sf2
 
 -- | The joint distribution of two distributions where one depends on the other
-jointConditional :: Sampler a -> (a-> Sampler b) -> Sampler (a,b)
+jointConditional :: Prob a -> (a-> Prob b) -> Prob (a,b)
 jointConditional sf1 condsf 
     = do x <- sf1
          y <- condsf x
@@ -145,41 +147,41 @@ jointConditional sf1 condsf
 -- * Uniform distributions
      
 -- | The unit interval U(0,1)
-unitSample :: Sampler Double
-unitSample = Sam randomDouble 
+unitSample :: Prob Double
+unitSample = Sampler randomDouble 
 
 -- | for x and y, the uniform distribution between x and y 
-uniform :: (Fractional a) => a -> a -> Sampler a
+uniform :: (Fractional a) => a -> a -> Prob a
 uniform a b = (\x->(realToFrac x)*(b-a)+a) `fmap` unitSample
                 
 -- * Normally distributed sampling function
 
 --http://en.wikipedia.org/wiki/Box-Muller_transform
 -- | The univariate gaussian (normal) distribution defined by mean and standard deviation
-gauss :: (Floating b) => b -> b -> Sampler b
+gauss :: (Floating b) => b -> b -> Prob b
 gauss m sd = 
     do (u1,u2) <- (mapPair realToFrac) `fmap` joint unitSample unitSample
        return $ sqrt(-2*log(u1))*cos(2*pi*u2)*sd+m
   where mapPair f (x,y) = (f x, f y)
 
 -- | Gaussians specialised for doubles
-gaussD :: Double -> Double -> Sampler Double
+gaussD :: Double -> Double -> Prob Double
 gaussD m sd = 
     do (u1,u2) <- joint unitSample unitSample
        return $ sqrt(-2*log(u1))*cos(2*pi*u2)*sd+m
 
 
-gaussMany :: Floating b => [(b,b)] -> Sampler [b]
+gaussMany :: Floating b => [(b,b)] -> Prob [b]
 gaussMany means_sds = do gus <- gaussManyUnit (length means_sds)
                          return $ map f $ zip gus means_sds
     where f (gu, (mean, sd)) = gu*sd+mean
 
-gaussManyD :: [(Double,Double)] -> Sampler [Double]
+gaussManyD :: [(Double,Double)] -> Prob [Double]
 gaussManyD means_sds = do gus <- gaussManyUnitD (length means_sds)
                           return $ zipWith f gus means_sds
     where f gu (mean, sd) = gu*sd+mean
 
-gaussManyUnit :: Floating b => Int -> Sampler [b]
+gaussManyUnit :: Floating b => Int -> Prob [b]
 gaussManyUnit 0 = return []
 gaussManyUnit n | odd n = liftM2 (:) (gauss 0 1) (gaussManyUnit (n-1))
                 | otherwise = do us <- forM [1..n] $ const $ unitSample
@@ -189,7 +191,7 @@ gaussManyUnit n | odd n = liftM2 (:) (gauss 0 1) (gaussManyUnit (n-1))
     gaussTwoAtATime (u1:u2:rest) = sqrt(-2*log(u1))*cos(2*pi*u2) : sqrt(-2*log(u1))*sin(2*pi*u2) : gaussTwoAtATime rest
     gaussTwoAtATime _ = []
 
-gaussManyUnitD :: Int -> Sampler [Double]
+gaussManyUnitD :: Int -> Prob [Double]
 gaussManyUnitD 0 = return []
 gaussManyUnitD n | odd n = liftM2 (:) (gauss 0 1) (gaussManyUnit (n-1))
                 | otherwise = do us <- forM [1..n] $ const $ unitSample
@@ -223,7 +225,7 @@ multiNormalByChol mu cholSigma =
         let r = asRow z
         return $ (mu + (head $ toColumns $ a `multiply` asColumn z))
 -}
-multiNormalIndep  :: V.Vector Double -> V.Vector Double -> Sampler (V.Vector Double)
+multiNormalIndep  :: V.Vector Double -> V.Vector Double -> Prob (V.Vector Double)
 multiNormalIndep vars mus = do
    let k = V.length mus
    gs <- gaussManyUnitD k
@@ -234,7 +236,7 @@ multiNormalIndep vars mus = do
 --http://en.wikipedia.org/wiki/Log-normal_distribution#Generating_log-normally-distributed_random_variates
 
 -- | log-normal distribution <http://en.wikipedia.org/wiki/Log-normal_distribution>
-logNormal :: (Floating b) => b -> b -> Sampler b
+logNormal :: (Floating b) => b -> b -> Prob b
 logNormal m sd = 
     do n <- gauss 0 1
        return $ exp $ m + sd * n
@@ -243,11 +245,11 @@ logNormal m sd =
 -- * Other distribution
 
 -- | Bernoulli distribution. Returns a Boolean that is 'True' with probability 'p'
-bernoulli :: Double -> Sampler Bool
+bernoulli :: Double -> Prob Bool
 bernoulli p = (<p) `fmap` unitSample 
 
 
-discrete :: [(Double,a)] -> Sampler a
+discrete :: [(Double,a)] -> Prob a
 discrete weightedSamples = 
    let sumWeights = sum $ map fst weightedSamples
        cummWeightedSamples = scanl (\(csum,_) (w,x) -> (csum+w,x)) (0,undefined) $ sortBy (comparing fst) weightedSamples
@@ -261,11 +263,11 @@ primOneOf xs seed
          idx = floor $ (realToFrac u)*(realToFrac $ length xs )
      in (xs !! idx, nextSeed)
 
-oneOf :: [a] -> Sampler a
+oneOf :: [a] -> Prob a
 oneOf xs = do idx <- floor `fmap` uniform (0::Double) (realToFrac $ length xs )
               return $ xs !! idx
 
-nOf :: Int -> [a] -> Sampler [a]
+nOf :: Int -> [a] -> Prob [a]
 nOf n xs = sequence $ replicate n $ oneOf xs
 
 {-main = do 
@@ -274,7 +276,7 @@ nOf n xs = sequence $ replicate n $ oneOf xs
   print $ map (\x->(x, length $ filter (==x) rnds )) $ diff -}
 
 -- | Bayesian inference from likelihood and prior using rejection sampling. 
-bayesRejection :: (PDF.PDF a) -> Double -> Sampler a -> Sampler a
+bayesRejection :: (PDF.PDF a) -> Double -> Prob a -> Prob a
 bayesRejection p c q = bayes
     where bayes = do x <- q
                      u <- unitSample
@@ -284,13 +286,13 @@ bayesRejection p c q = bayes
 
                      
 {-
-expectation :: Fractional a =>  Int -> Sampler a -> IO a
+expectation :: Fractional a =>  Int -> Prob a -> IO a
 expectation n sf = 
-    (mean . take n) `fmap` runSamplerIO sf
+    (mean . take n) `fmap` runProbIO sf
  
-expectSD :: Floating a =>  Int -> Sampler a -> IO (a,a)
+expectSD :: Floating a =>  Int -> Prob a -> IO (a,a)
 expectSD n sf = 
-    (meanSD . take n) `fmap` runSamplerIO sf
+    (meanSD . take n) `fmap` runProbIO sf
 -}                 
 
 --mapPair :: (a->b) -> (a,a) -> (b,b)
@@ -327,7 +329,7 @@ main = do u <- expectSD 1000000 $ gauss 0 1
 expDist rate =  (\u-> negate $ (log(1-u))/rate) `fmap` unitSample
 
 -- | Homogeneous poisson process defined by rate and duration
-poissonMany :: Double -> Double -> Sampler [Double]
+poissonMany :: Double -> Double -> Prob [Double]
 poissonMany rate tmax = aux 0 
     where aux last = do
             next <- (+last) `fmap` expDist rate
@@ -336,14 +338,14 @@ poissonMany rate tmax = aux 0
                else liftM2 (:) (return next) $ aux next
 
 -- | binomial distribution 
-binomial :: Int -> Double -> Sampler Int
+binomial :: Int -> Double -> Prob Int
 binomial n p = do
   bools <- forM [1..n] $ const $ fmap (<p) unitSample
   return $ length $ [t | t@True <- bools]
   
 -- from random-fu
 -- | Gamma distribution
-gamma :: Double -> Double -> Sampler Double
+gamma :: Double -> Double -> Prob Double
 gamma a b 
      | a < 1 
     = do
@@ -376,15 +378,15 @@ gamma a b
                             else go
 
 -- | inverse gamma distribution
-invGamma :: Double -> Double -> Sampler Double
+invGamma :: Double -> Double -> Prob Double
 invGamma a b = recip `fmap` gamma a b
 
 --http://en.wikipedia.org/wiki/Multivariate_normal_distribution#Drawing_values_from_the_distribution
---multiNormal :: Vector Double -> Matrix Double -> Sampler (Vector Double)
+--multiNormal :: Vector Double -> Matrix Double -> Prob (Vector Double)
 
 --http://www.xycoon.com/beta_randomnumbers.htm
 -- | beta distribution
-beta :: Int -> Int -> Sampler Double
+beta :: Int -> Int -> Prob Double
 beta a b = 
     let gam n = do us <- forM [1..n] $ const unitSample
                    return $ log $ product us

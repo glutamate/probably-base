@@ -2,7 +2,7 @@ module Math.Probably.SDE where
 
 import Math.Probably.Sampler
 
-weiner :: Double -> Double -> Sampler [Double]
+weiner :: Double -> Double -> Prob [Double]
 weiner dt tmax = do
    let npts = round $ tmax/dt
    etas <- fmap (map (*sqrt dt)) $ gaussManyUnitD npts 
