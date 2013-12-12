@@ -59,7 +59,7 @@ Library
                   , vector                        >= 0.10.0.1   && < 0.11
                   , data-default                  >= 0.5.3      && < 0.6
                   , monad-par                     >= 0.3.4.2    && < 0.4
-                  , hmatrix                       >= 0.14.1.0   && < 0.15
+                  , hmatrix                       >= 0.15   && < 0.16
 
    ghc-prof-options: -auto-all
 
